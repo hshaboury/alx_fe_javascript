@@ -1,6 +1,6 @@
 // --- DATA ---
 // Step 2: Manage an array of quote objects
-const quotes = [
+let quotes = [
     { text: "The only way to do great work is to love what you do.", category: "Inspiration" },
     { text: "Innovation distinguishes between a leader and a follower.", category: "Technology" },
     { text: "Strive not to be a success, but rather to be of value.", category: "Wisdom" },
@@ -12,6 +12,32 @@ const quotes = [
 const quoteDisplay = document.getElementById('quoteDisplay');
 const newQuoteBtn = document.getElementById('newQuote');
 const addQuoteContainer = document.getElementById('addQuoteContainer');
+// storage controls
+const exportJsonBtn = document.getElementById('exportJson');
+const importFileInput = document.getElementById('importFile');
+
+// --- STORAGE HELPERS ---
+function saveQuotes() {
+    try {
+        localStorage.setItem('quotes', JSON.stringify(quotes));
+    } catch (err) {
+        console.error('Failed to save quotes to localStorage:', err);
+    }
+}
+
+function loadQuotes() {
+    try {
+        const stored = localStorage.getItem('quotes');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length) {
+                quotes = parsed;
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load quotes from localStorage:', err);
+    }
+}
 
 // --- FUNCTIONS ---
 
@@ -24,8 +50,25 @@ function showRandomQuote() {
     quoteDisplay.style.opacity = 0;
 
     setTimeout(() => {
-        // Get a random quote from the array
-        const randomIndex = Math.floor(Math.random() * quotes.length);
+        if (!quotes.length) {
+            quoteDisplay.innerHTML = '<p>No quotes available. Add one!</p>';
+            quoteDisplay.style.opacity = 1;
+            return;
+        }
+
+        // Try to reuse last viewed index from sessionStorage if present
+        let randomIndex;
+        const lastIndex = sessionStorage.getItem('lastIndex');
+        if (lastIndex !== null && Math.random() < 0.3) {
+            // 30% chance to show last viewed quote for demonstration
+            randomIndex = parseInt(lastIndex, 10);
+            if (isNaN(randomIndex) || randomIndex < 0 || randomIndex >= quotes.length) {
+                randomIndex = Math.floor(Math.random() * quotes.length);
+            }
+        } else {
+            randomIndex = Math.floor(Math.random() * quotes.length);
+        }
+
         const quote = quotes[randomIndex];
 
         // Clear any existing content
@@ -41,6 +84,13 @@ function showRandomQuote() {
         // Append new elements to the display area
         quoteDisplay.appendChild(quoteTextElement);
         quoteDisplay.appendChild(quoteCategoryElement);
+
+        // Save last viewed index to sessionStorage
+        try {
+            sessionStorage.setItem('lastIndex', String(randomIndex));
+        } catch (err) {
+            console.warn('sessionStorage unavailable:', err);
+        }
 
         // Fade in the new quote
         quoteDisplay.style.opacity = 1;
@@ -63,6 +113,9 @@ function addQuote() {
 
         // Add it to the quotes array
         quotes.push(newQuote);
+
+        // Persist to localStorage
+        saveQuotes();
 
         // Clear the input fields
         newQuoteTextInput.value = '';
@@ -116,11 +169,67 @@ function createAddQuoteForm() {
     addQuoteContainer.appendChild(addQuoteBtn);
 }
 
+// --- IMPORT / EXPORT FUNCTIONS ---
+
+function exportToJson() {
+    try {
+        const dataStr = JSON.stringify(quotes, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'quotes.json';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        console.error('Export failed:', err);
+        alert('Export failed. See console for details.');
+    }
+}
+
+function importFromJsonFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const fileReader = new FileReader();
+    fileReader.onload = function(ev) {
+        try {
+            const imported = JSON.parse(ev.target.result);
+            if (!Array.isArray(imported)) throw new Error('JSON must be an array');
+
+            // Validate and merge
+            const valid = imported.filter(item => item && typeof item.text === 'string' && typeof item.category === 'string');
+            if (!valid.length) {
+                alert('No valid quotes found in imported file.');
+                return;
+            }
+
+            quotes.push(...valid);
+            saveQuotes();
+            alert(`Imported ${valid.length} quotes successfully!`);
+            showRandomQuote();
+        } catch (err) {
+            console.error('Import failed:', err);
+            alert('Failed to import JSON: ' + err.message);
+        } finally {
+            // reset input so same file can be re-imported if needed
+            importFileInput.value = '';
+        }
+    };
+    fileReader.readAsText(file);
+}
+
 // --- INITIALIZATION ---
 
 // Add a listener to ensure the DOM is fully loaded before running our script
 document.addEventListener('DOMContentLoaded', () => {
+    // Load quotes from localStorage if present
+    loadQuotes();
+
     // Display the first random quote when the page loads
+    // If sessionStorage has lastIndex, try to display that one
     showRandomQuote();
     
     // Dynamically create the form to add new quotes
@@ -128,4 +237,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Attach the event listener to the "Show New Quote" button
     newQuoteBtn.addEventListener('click', showRandomQuote);
+
+    // Attach export/import handlers
+    if (exportJsonBtn) exportJsonBtn.addEventListener('click', exportToJson);
+    if (importFileInput) importFileInput.addEventListener('change', importFromJsonFile);
 });

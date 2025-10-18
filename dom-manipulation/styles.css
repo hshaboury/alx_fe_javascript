@@ -129,3 +129,60 @@ button:focus {
 #addQuoteContainer button:hover {
     background-color: #059669; /* Green 600 */
 }
+
+#storageControls {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    align-items: center;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Style the export button and the import label (label triggers file input) */
+#storageControls button,
+#importFileLabel {
+    background-color: #6b7280; /* Gray 500 */
+    color: #ffffff;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: transform 0.15s, background-color 0.15s;
+    border: none;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+#storageControls button:hover,
+#importFileLabel:hover {
+    transform: scale(1.03);
+    background-color: #4b5563; /* Gray 600 */
+}
+
+/* Hide the native file input (label[for="importFile"] will open the file picker) */
+#importFile {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Responsive: stack controls on narrow screens */
+@media (max-width: 480px) {
+    #storageControls {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    #storageControls button,
+    #importFileLabel {
+        width: 100%;
+        justify-content: center;
+    }
+}
