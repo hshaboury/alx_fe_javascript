@@ -8,14 +8,21 @@ let quotes = [
     { text: "Your time is limited, so don't waste it living someone else's life.", category: "Life" }
 ];
 
+// === STEP 1: SERVER SIMULATION CONSTANT ===
+const SERVER_URL = 'https://jsonplaceholder.typicode.com/posts';
+
+
 // --- DOM ELEMENT REFERENCES ---
 const quoteDisplay = document.getElementById('quoteDisplay');
 const newQuoteBtn = document.getElementById('newQuote');
 const addQuoteContainer = document.getElementById('addQuoteContainer');
-const categoryFilter = document.getElementById('categoryFilter'); // === STEP 2.1 ===
+const categoryFilter = document.getElementById('categoryFilter');
 // storage controls
 const exportJsonBtn = document.getElementById('exportJson');
 const importFileInput = document.getElementById('importFile');
+// === STEP 3: NOTIFICATION ELEMENT ===
+const syncNotification = document.getElementById('syncNotification');
+
 
 // --- STORAGE HELPERS ---
 function saveQuotes() {
@@ -43,7 +50,7 @@ function loadQuotes() {
 // --- FUNCTIONS ---
 
 /**
- * === STEP 2.2: MODIFIED showRandomQuote ===
+ * Step 2.2: MODIFIED showRandomQuote
  * This function now filters quotes based on the selected category
  * before displaying a random one.
  */
@@ -94,8 +101,9 @@ function showRandomQuote() {
 }
 
 /**
- * === STEP 2.3: MODIFIED addQuote ===
+ * === STEP 2.3 & 3: MODIFIED addQuote ===
  * Now updates the category filter dropdown if a new category is added.
+ * Also simulates pushing the new quote to the server.
  */
 function addQuote() {
     const newQuoteTextInput = document.getElementById('newQuoteText');
@@ -114,7 +122,10 @@ function addQuote() {
         // Persist to localStorage
         saveQuotes();
 
-        // === STEP 2.3: Update categories in dropdown ===
+        // === STEP 3: Push the new quote to the server ===
+        syncQuoteToServer(newQuote);
+
+        // Update categories in dropdown
         populateCategories();
 
         // Clear the input fields
@@ -169,8 +180,8 @@ function createAddQuoteForm() {
     addQuoteContainer.appendChild(addQuoteBtn);
 }
 
-// === STEP 2.2: NEW FUNCTION populateCategories ===
 /**
+ * Step 2.2: NEW FUNCTION populateCategories
  * Dynamically populates the category filter dropdown with unique categories.
  */
 function populateCategories() {
@@ -193,21 +204,20 @@ function populateCategories() {
     });
 
     // Restore the previously selected filter, if it still exists
-    // This prevents the filter from resetting when a new quote is added
     if (Array.from(categoryFilter.options).some(opt => opt.value === currentFilter)) {
         categoryFilter.value = currentFilter;
     }
 }
 
-// === STEP 2.2: NEW FUNCTION filterQuotes ===
 /**
+ * Step 2.2: NEW FUNCTION filterQuotes
  * Handles the change event from the category filter.
  * Saves the filter preference and shows a new quote.
  */
 function filterQuotes() {
     const selectedCategory = categoryFilter.value;
     
-    // === STEP 2.2: Remember the last selected filter in localStorage ===
+    // Remember the last selected filter in localStorage
     try {
         localStorage.setItem('lastCategoryFilter', selectedCategory);
     } catch (err) {
@@ -240,8 +250,8 @@ function exportToJson() {
 }
 
 /**
- * === STEP 2.3: MODIFIED importFromJsonFile ===
- * Now updates the category filter after importing new quotes.
+ * === STEP 2.3 & 3: MODIFIED importFromJsonFile ===
+ * Now updates the category filter and syncs with server after importing.
  */
 function importFromJsonFile(event) {
     const file = event.target.files && event.target.files[0];
@@ -259,12 +269,21 @@ function importFromJsonFile(event) {
                 alert('No valid quotes found in imported file.');
                 return;
             }
-
-            quotes.push(...valid);
+            
+            // We'll merge the imported quotes with existing ones, letting imported ones win
+            const mergedMap = new Map();
+            quotes.forEach(q => mergedMap.set(q.text, q));
+            valid.forEach(q => mergedMap.set(q.text, q));
+            
+            quotes = Array.from(mergedMap.values());
+            
             saveQuotes();
             
-            // === STEP 2.3: Update categories after import ===
+            // Update categories after import
             populateCategories(); 
+            
+            // === STEP 3: Sync with server after import ===
+            syncWithServer();
 
             alert(`Imported ${valid.length} quotes successfully!`);
             showRandomQuote(); // Show a new random quote (respecting filter)
@@ -279,6 +298,134 @@ function importFromJsonFile(event) {
     fileReader.readAsText(file);
 }
 
+// === STEP 1, 2, 3: SERVER SYNC AND CONFLICT RESOLUTION ===
+
+/**
+ * Step 3: Shows a notification bar at the bottom.
+ * @param {string} message The message to display.
+ */
+function showNotification(message) {
+    syncNotification.textContent = message;
+    syncNotification.classList.add('show');
+
+    // Hide the notification after 3 seconds
+    setTimeout(() => {
+        syncNotification.classList.remove('show');
+    }, 3000);
+}
+
+/**
+ * Helper to map a server post object to our quote object format.
+ * @param {object} post - The post object from JSONPlaceholder
+ * @returns {object} A quote object
+ */
+function mapServerPostToQuote(post) {
+    // Use post title as text, and user ID as a mock category
+    return {
+        text: post.title.charAt(0).toUpperCase() + post.title.slice(1), // Capitalize first letter
+        category: `Server (${post.userId})`
+    };
+}
+
+/**
+ * Step 1: Simulates fetching quotes from the server.
+ * We limit to 5 to keep the demo manageable.
+ * @returns {Promise<Array>} A promise that resolves to an array of quote objects.
+ */
+async function fetchServerQuotes() {
+    try {
+        const response = await fetch(`${SERVER_URL}?_limit=5`);
+        if (!response.ok) throw new Error('Server response not OK');
+        
+        const serverPosts = await response.json();
+        // Map the server data to our app's quote format
+        return serverPosts.map(mapServerPostToQuote);
+    } catch (err) {
+        console.error('Failed to fetch from server:', err);
+        return []; // Return empty array on failure
+    }
+}
+
+/**
+ * Step 1: Simulates pushing a new quote to the server.
+ * @param {object} quote - The new quote object to "send".
+ */
+async function syncQuoteToServer(quote) {
+    try {
+        const response = await fetch(SERVER_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                title: quote.text,
+                body: quote.text, // JSONPlaceholder expects a 'body'
+                userId: quote.category // Just for simulation
+            }),
+            headers: {
+                'Content-type': 'application/json; charset=UTF-8',
+            },
+        });
+        
+        const newPost = await response.json();
+        console.log('Successfully "posted" to server:', newPost);
+        // In a real app, you might update the local quote with the server's ID
+        // e.g., quote.id = newPost.id; saveQuotes();
+        showNotification('Quote saved to server (simulated).');
+    } catch (err) {
+        console.error('Failed to sync new quote to server:', err);
+        showNotification('Failed to save quote to server.');
+    }
+}
+
+/**
+ * Step 2 & 3: Main data syncing and conflict resolution function.
+ * Fetches server quotes and merges them with local quotes.
+ * Conflict Strategy: "Server Wins".
+ */
+async function syncWithServer() {
+    console.log('Syncing with server...');
+    const serverQuotes = await fetchServerQuotes();
+    
+    if (!serverQuotes.length) {
+        console.log('Sync failed or no server quotes returned.');
+        return; // Don't proceed if fetch failed
+    }
+
+    const localQuotes = quotes;
+    const originalLocalCount = localQuotes.length;
+
+    // Use a Map to merge. Keyed by quote text for simple deduplication.
+    // This implements "Server Wins" because server quotes are added *after*
+    // local quotes, overwriting any with the same text.
+    const mergedQuotesMap = new Map();
+    
+    // 1. Add all local quotes
+    localQuotes.forEach(quote => {
+        mergedQuotesMap.set(quote.text.toLowerCase(), quote);
+    });
+    
+    // 2. Add all server quotes (overwriting any local duplicates)
+    serverQuotes.forEach(quote => {
+        mergedQuotesMap.set(quote.text.toLowerCase(), quote);
+    });
+
+    const newQuotesArray = Array.from(mergedQuotesMap.values());
+    const quotesAdded = newQuotesArray.length - originalLocalCount;
+
+    if (quotesAdded > 0) {
+        console.log(`Sync complete: ${quotesAdded} new quote(s) added.`);
+        
+        // Update the global state, save, and refresh UI
+        quotes = newQuotesArray;
+        saveQuotes();
+        populateCategories(); // Update dropdown with new server categories
+        
+        // Step 3: Notify user of the update
+        showNotification(`Sync complete: ${quotesAdded} new quote(s) found.`);
+    } else {
+        console.log('Sync complete: No new quotes found.');
+    }
+}
+
+
 // --- INITIALIZATION ---
 
 // Add a listener to ensure the DOM is fully loaded before running our script
@@ -289,14 +436,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Dynamically create the form to add new quotes
     createAddQuoteForm();
 
-    // === STEP 2.2: Populate category filter on load ===
+    // Populate category filter on load
     populateCategories();
 
-    // === STEP 2.2: Restore last filter preference from localStorage ===
+    // Restore last filter preference from localStorage
     try {
         const lastFilter = localStorage.getItem('lastCategoryFilter');
         if (lastFilter) {
-            // Check if the saved filter value actually exists as an option
             if (Array.from(categoryFilter.options).some(opt => opt.value === lastFilter)) {
                 categoryFilter.value = lastFilter;
             }
@@ -311,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Attach the event listener to the "Show New Quote" button
     newQuoteBtn.addEventListener('click', showRandomQuote);
     
-    // === STEP 2.2: Attach event listener for the filter ===
+    // Attach event listener for the filter
     if (categoryFilter) {
         categoryFilter.addEventListener('change', filterQuotes);
     }
@@ -319,4 +465,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Attach export/import handlers
     if (exportJsonBtn) exportJsonBtn.addEventListener('click', exportToJson);
     if (importFileInput) importFileInput.addEventListener('change', importFromJsonFile);
+    
+    // === STEP 1: INITIALIZE SERVER SYNC ===
+    // Run the first sync 2 seconds after page load
+    setTimeout(syncWithServer, 2000);
+    
+    // Run sync periodically every 30 seconds
+    setInterval(syncWithServer, 30000); // 30000 ms = 30 seconds
 });

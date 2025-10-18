@@ -206,3 +206,25 @@ button:focus {
         justify-content: center;
     }
 }
+
+/* === STEP 3: STYLES FOR SYNC NOTIFICATION === */
+#syncNotification {
+    display: none; /* Hidden by default */
+    position: fixed;
+    bottom: -100px; /* Start off-screen */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #2d3748; /* Dark background */
+    color: #ffffff; /* White text */
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    font-weight: 600;
+    transition: bottom 0.5s ease-in-out;
+    z-index: 1000;
+}
+
+#syncNotification.show {
+    display: block;
+    bottom: 20px; /* Slide in */
+}
