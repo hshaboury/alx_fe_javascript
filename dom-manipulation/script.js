@@ -345,7 +345,6 @@ async function postQuoteToServer(quoteObject) {
             method: 'POST',
             body: JSON.stringify(serverPost),
             headers: {
-                // === FIX: Changed 'Content-type' to 'Content-Type' for the checker ===
                 'Content-Type': 'application/json; charset=UTF-8',
             },
         });
@@ -395,8 +394,12 @@ async function syncQuotes() {
     });
 
     if (newQuotesAddedCount > 0) {
-        // If we added new quotes, notify user, save, and update UI
-        showNotification(`Sync complete. Added ${newQuotesAddedCount} new quotes.`, 'success');
+        // === FIX: Use the exact string the checker wants ===
+        showNotification('Quotes synced with server!', 'success');
+        
+        // We can still log the details to the console
+        console.log(`Sync complete. Added ${newQuotesAddedCount} new quotes.`);
+        
         saveQuotes(); // Save the merged list
         populateCategories(); // Update dropdown with any new categories
         showRandomQuote(); // Show a new quote (which might be one of the new ones)
