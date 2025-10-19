@@ -365,7 +365,7 @@ async function syncQuoteToServer(quote) {
                 userId: quote.category // Just for simulation
             }),
             headers: {
-                'Content-type': 'application/json; charset=UTF-8',
+                'Content-Type': 'application/json; charset=UTF-8', // <-- UPDATED
             },
         });
         
@@ -424,11 +424,8 @@ function showConflictDialog(localQuote, serverQuote) {
             resolve('both');
         };
 
-        // Use 'flex' to show the modal (as per the .modal style in your CSS)
+        // Show the modal
         conflictDialog.style.display = 'block'; 
-        // Note: Your CSS uses .modal { display: none; } but doesn't define
-        // a 'show' or 'visible' class. Setting display to 'block' or 'flex'
-        // will work. I'll use 'block' as it's simpler.
     });
 }
 
