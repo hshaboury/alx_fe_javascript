@@ -332,7 +332,7 @@ function mapServerPostToQuote(post) {
  * We limit to 5 to keep the demo manageable.
  * @returns {Promise<Array>} A promise that resolves to an array of quote objects.
  */
-async function fetchServerQuotes() {
+async function fetchQuotesFromServer() { // <--- RENAMED
     try {
         const response = await fetch(`${SERVER_URL}?_limit=5`);
         if (!response.ok) throw new Error('Server response not OK');
@@ -382,7 +382,7 @@ async function syncQuoteToServer(quote) {
  */
 async function syncWithServer() {
     console.log('Syncing with server...');
-    const serverQuotes = await fetchServerQuotes();
+    const serverQuotes = await fetchQuotesFromServer(); // <--- RENAMED
     
     if (!serverQuotes.length) {
         console.log('Sync failed or no server quotes returned.');
