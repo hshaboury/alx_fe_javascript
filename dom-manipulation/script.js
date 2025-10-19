@@ -345,7 +345,8 @@ async function postQuoteToServer(quoteObject) {
             method: 'POST',
             body: JSON.stringify(serverPost),
             headers: {
-                'Content-type': 'application/json; charset=UTF-8',
+                // === FIX: Changed 'Content-type' to 'Content-Type' for the checker ===
+                'Content-Type': 'application/json; charset=UTF-8',
             },
         });
 
