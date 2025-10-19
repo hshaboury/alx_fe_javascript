@@ -14,11 +14,13 @@
         </header>
 
         <main>
+            <div id="notificationArea"></div>
+
             <div id="quoteDisplay">
             </div>
 
-            <select id="categoryFilter" title="Select a category">
-                <option value="all">All Categories</option>
+            <select id="categoryFilter" aria-label="Filter by category" title="Filter by category">
+              <option value="all">All Categories</option>
             </select>
 
             <button id="newQuote">Show New Quote</button>
@@ -30,27 +32,10 @@
 
             <div id="storageControls">
                 <button id="exportJson">Export Quotes (JSON)</button>
-                <label for="importFile" id="importFileLabel">Import Quotes (JSON)</label>
-                <input type="file" id="importFile" accept=".json" />
-                <!-- Add manual sync button -->
-                <button id="manualSync">Sync with Server</button>
-                <span id="lastSyncTime"></span>
+                <label for="importFile" id="importFileLabel">Import Quotes (JSON):</label>
+                <input type="file" id="importFile" accept=".json" title="Import JSON file" placeholder="Choose a JSON file..." />
             </div>
         </main>
-    </div>
-
-    <!-- Add notification container -->
-    <div id="syncNotification" class="notification"></div>
-    <div id="conflictDialog" class="modal">
-        <div class="modal-content">
-            <h3>Conflict Detected</h3>
-            <p id="conflictMessage"></p>
-            <div class="conflict-choices">
-                <button id="keepLocal">Keep Local</button>
-                <button id="keepServer">Keep Server</button>
-                <button id="keepBoth">Keep Both</button>
-            </div>
-        </div>
     </div>
 
     <script src="script.js"></script>

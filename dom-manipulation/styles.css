@@ -36,6 +36,40 @@ header p {
     margin-bottom: 1.5rem;
 }
 
+/* === STEP 3.1: ADDED NOTIFICATION STYLES === */
+#notificationArea {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    display: none; /* Start hidden */
+}
+
+#notificationArea.show {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+#notificationArea.success {
+    background-color: #d1fae5; /* Green 100 */
+    color: #065f46; /* Green 800 */
+}
+
+#notificationArea.error {
+    background-color: #fee2e2; /* Red 100 */
+    color: #991b1b; /* Red 800 */
+}
+
+#notificationArea.info {
+    background-color: #e0f2fe; /* Sky 100 */
+    color: #0c4a6e; /* Sky 800 */
+}
+
+
 /* Quote Display Area */
 #quoteDisplay {
     min-height: 120px;
@@ -206,82 +240,3 @@ button:focus {
         justify-content: center;
     }
 }
-
-/* === STEP 3: STYLES FOR SYNC NOTIFICATION === */
-#syncNotification {
-    display: none; /* Hidden by default */
-    position: fixed;
-    bottom: -100px; /* Start off-screen */
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #2d3748; /* Dark background */
-    color: #ffffff; /* White text */
-    padding: 1rem 2rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    font-weight: 600;
-    transition: bottom 0.5s ease-in-out;
-    z-index: 1000;
-}
-
-#syncNotification.show {
-    display: block;
-    bottom: 20px; /* Slide in */
-}
-
-/* Sync Status */
-#lastSyncTime {
-    display: block;
-    font-size: 0.875rem;
-    color: #718096;
-    margin-top: 0.5rem;
-}
-
-#manualSync {
-    background-color: #4f46e5; /* Indigo 600 */
-}
-
-#manualSync:hover {
-    background-color: #4338ca; /* Indigo 700 */
-}
-
-/* Conflict Dialog */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-}
-
-.modal-content {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: white;
-    padding: 2rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    max-width: 90%;
-    width: 32rem;
-}
-
-.conflict-choices {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1.5rem;
-    justify-content: center;
-}
-
-.conflict-choices button {
-    flex: 1;
-    max-width: 150px;
-}
-
-#keepLocal { background-color: #dc2626; }
-#keepServer { background-color: #059669; }
-#keepBoth { background-color: #2563eb; }
