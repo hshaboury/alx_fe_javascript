@@ -23,6 +23,11 @@ const importFileInput = document.getElementById('importFile');
 // === STEP 3: NOTIFICATION ELEMENT ===
 const syncNotification = document.getElementById('syncNotification');
 
+// === STEP 3 (ENHANCED): NEW DOM REFERENCES ===
+const conflictDialog = document.getElementById('conflictDialog');
+const lastSyncTimeSpan = document.getElementById('lastSyncTime');
+const manualSyncBtn = document.getElementById('manualSync');
+
 
 // --- STORAGE HELPERS ---
 function saveQuotes() {
@@ -332,7 +337,7 @@ function mapServerPostToQuote(post) {
  * We limit to 5 to keep the demo manageable.
  * @returns {Promise<Array>} A promise that resolves to an array of quote objects.
  */
-async function fetchQuotesFromServer() { // <--- RENAMED
+async function fetchQuotesFromServer() {
     try {
         const response = await fetch(`${SERVER_URL}?_limit=5`);
         if (!response.ok) throw new Error('Server response not OK');
@@ -375,53 +380,132 @@ async function syncQuoteToServer(quote) {
     }
 }
 
+// === STEP 3 (ENHANCED): NEW FUNCTIONS ===
+
 /**
- * Step 2 & 3: Main data syncing and conflict resolution function.
- * Fetches server quotes and merges them with local quotes.
- * Conflict Strategy: "Server Wins".
+ * Updates the last sync time display
+ */
+function updateLastSyncTime() {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString();
+    if (lastSyncTimeSpan) {
+        lastSyncTimeSpan.textContent = `Last synced: ${timeStr}`;
+    }
+    localStorage.setItem('lastSyncTime', now.toISOString());
+}
+
+/**
+ * Shows the conflict resolution dialog
+ * @param {object} localQuote - The local version of the quote
+ * @param {object} serverQuote - The server version of the quote
+ * @returns {Promise} Resolves with the user's choice
+ */
+function showConflictDialog(localQuote, serverQuote) {
+    return new Promise((resolve) => {
+        const message = document.getElementById('conflictMessage');
+        message.innerHTML = `
+            <p>A conflict was detected for the following quote:</p>
+            <p><strong>Local:</strong> "${localQuote.text}" (Category: ${localQuote.category})</p>
+            <p><strong>Server:</strong> "${serverQuote.text}" (Category: ${serverQuote.category})</p>
+            <p>How would you like to resolve this?</p>
+        `;
+
+        // Set up button handlers
+        document.getElementById('keepLocal').onclick = () => {
+            conflictDialog.style.display = 'none';
+            resolve('local');
+        };
+        document.getElementById('keepServer').onclick = () => {
+            conflictDialog.style.display = 'none';
+            resolve('server');
+        };
+        document.getElementById('keepBoth').onclick = () => {
+            conflictDialog.style.display = 'none';
+            resolve('both');
+        };
+
+        // Use 'flex' to show the modal (as per the .modal style in your CSS)
+        conflictDialog.style.display = 'block'; 
+        // Note: Your CSS uses .modal { display: none; } but doesn't define
+        // a 'show' or 'visible' class. Setting display to 'block' or 'flex'
+        // will work. I'll use 'block' as it's simpler.
+    });
+}
+
+/**
+ * === STEP 3 (ENHANCED): REPLACED syncWithServer FUNCTION ===
+ * Enhanced sync function with conflict resolution
  */
 async function syncWithServer() {
     console.log('Syncing with server...');
-    const serverQuotes = await fetchQuotesFromServer(); // <--- RENAMED
+    showNotification('Syncing with server...'); // Give visual feedback
+    const serverQuotes = await fetchQuotesFromServer();
     
     if (!serverQuotes.length) {
-        console.log('Sync failed or no server quotes returned.');
-        return; // Don't proceed if fetch failed
+        showNotification('Sync failed or no server quotes available.');
+        return;
     }
 
-    const localQuotes = quotes;
-    const originalLocalCount = localQuotes.length;
-
-    // Use a Map to merge. Keyed by quote text for simple deduplication.
-    // This implements "Server Wins" because server quotes are added *after*
-    // local quotes, overwriting any with the same text.
+    const localQuotes = [...quotes]; // Create a copy
+    const conflicts = [];
     const mergedQuotesMap = new Map();
-    
-    // 1. Add all local quotes
-    localQuotes.forEach(quote => {
-        mergedQuotesMap.set(quote.text.toLowerCase(), quote);
+
+    // First pass: Identify conflicts
+    localQuotes.forEach(local => {
+        const server = serverQuotes.find(s => s.text.toLowerCase() === local.text.toLowerCase());
+        // Conflict = same text, different category
+        if (server && server.category !== local.category) {
+            conflicts.push({ local, server });
+        } else {
+            // No conflict, just add local
+            mergedQuotesMap.set(local.text.toLowerCase(), local);
+        }
     });
-    
-    // 2. Add all server quotes (overwriting any local duplicates)
+
+    // Handle conflicts if any
+    for (const conflict of conflicts) {
+        const choice = await showConflictDialog(conflict.local, conflict.server);
+        switch (choice) {
+            case 'local':
+                mergedQuotesMap.set(conflict.local.text.toLowerCase(), conflict.local);
+                break;
+            case 'server':
+                mergedQuotesMap.set(conflict.server.text.toLowerCase(), conflict.server);
+                break;
+            case 'both':
+                // Add local version
+                mergedQuotesMap.set(conflict.local.text.toLowerCase(), conflict.local);
+                // Add server version with a modified key (text) to ensure it's unique
+                const serverQuoteWithModifiedText = { 
+                    ...conflict.server, 
+                    text: `${conflict.server.text} (from server)` 
+                };
+                mergedQuotesMap.set(serverQuoteWithModifiedText.text.toLowerCase(), serverQuoteWithModifiedText);
+                break;
+        }
+    }
+
+    // Add remaining server quotes that aren't already in the map
     serverQuotes.forEach(quote => {
-        mergedQuotesMap.set(quote.text.toLowerCase(), quote);
+        if (!mergedQuotesMap.has(quote.text.toLowerCase())) {
+            mergedQuotesMap.set(quote.text.toLowerCase(), quote);
+        }
     });
 
     const newQuotesArray = Array.from(mergedQuotesMap.values());
-    const quotesAdded = newQuotesArray.length - originalLocalCount;
+    const quotesAdded = newQuotesArray.length - localQuotes.length;
 
-    if (quotesAdded > 0) {
-        console.log(`Sync complete: ${quotesAdded} new quote(s) added.`);
-        
-        // Update the global state, save, and refresh UI
-        quotes = newQuotesArray;
-        saveQuotes();
-        populateCategories(); // Update dropdown with new server categories
-        
-        // Step 3: Notify user of the update
-        showNotification(`Sync complete: ${quotesAdded} new quote(s) found.`);
+    quotes = newQuotesArray;
+    saveQuotes();
+    populateCategories();
+    updateLastSyncTime();
+    
+    if (conflicts.length > 0) {
+        showNotification(`Sync complete: ${conflicts.length} conflict(s) resolved.`);
+    } else if (quotesAdded > 0) {
+        showNotification(`Sync complete: ${quotesAdded} new quote(s) added.`);
     } else {
-        console.log('Sync complete: No new quotes found.');
+        showNotification('Sync complete: No changes.');
     }
 }
 
@@ -466,10 +550,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (exportJsonBtn) exportJsonBtn.addEventListener('click', exportToJson);
     if (importFileInput) importFileInput.addEventListener('change', importFromJsonFile);
     
-    // === STEP 1: INITIALIZE SERVER SYNC ===
-    // Run the first sync 2 seconds after page load
+    // === STEP 3 (ENHANCED): MERGED INITIALIZATION ===
+
+    // Add manual sync button handler
+    if (manualSyncBtn) {
+        manualSyncBtn.addEventListener('click', syncWithServer);
+    }
+
+    // Restore last sync time
+    const lastSync = localStorage.getItem('lastSyncTime');
+    if (lastSync) {
+        const lastSyncDate = new Date(lastSync);
+        if (lastSyncTimeSpan) {
+            lastSyncTimeSpan.textContent = `Last synced: ${lastSyncDate.toLocaleTimeString()}`;
+        }
+    }
+
+    // Initial sync after 2 seconds
     setTimeout(syncWithServer, 2000);
     
-    // Run sync periodically every 30 seconds
+    // Periodic sync every 30 seconds
     setInterval(syncWithServer, 30000); // 30000 ms = 30 seconds
 });
